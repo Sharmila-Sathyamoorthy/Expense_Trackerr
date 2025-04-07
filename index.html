@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ExpenseMaster Pro - Enhanced Financial Tracker</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --primary-color: #6b21a8;
+      --primary-light: #9f7aea;
+      --secondary-color: #f3e8ff;
+      --dark-text: #f3f3f3;
+      --light-text: #333;
+      --income-color: #10b981;
+      --expense-color: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: var(--secondary-color);
+      color: var(--light-text);
+      min-height: 100vh;
+    }
+
+    header {
+      background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+      color: white;
+      padding: 2rem;
+      text-align: center;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    nav {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      background-color: #e9d5ff;
+      padding: 1rem;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    nav a {
+      color: #4c1d95;
+      font-weight: 500;
+      text-decoration: none;
+      padding: 0.5rem 1.5rem;
+      border-radius: 30px;
+      transition: 0.3s ease;
+    }
+
+    nav a:hover, nav a.active {
+      background-color: #d8b4fe;
+    }
+
+    .main-container {
+      max-width: 1200px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .input-field {
+      margin: 10px 0;
+      display: flex;
+      gap: 10px;
+    }
+
+    .input-field input {
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      flex: 1;
+    }
+
+    .input-field button {
+      padding: 10px 15px;
+      border: none;
+      border-radius: 5px;
+      background-color: var(--primary-color);
+      color: white;
+      cursor: pointer;
+    }
+
+    .input-field button:hover {
+      background-color: var(--primary-light);
+    }
+
+    .transaction-list, .goal-list {
+      margin-top: 20px;
+    }
+
+    .transaction-item, .goal-list li {
+      background: #fff;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    }
+
+    .chart-container {
+      width: 300px;
+      height: 300px;
+      margin: 0 auto;
+    }
+
+    canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>ExpenseMaster Pro</h1>
+    <p>Your comprehensive financial management solution</p>
+  </header>
+
+  <nav>
+    <a href="#" class="active" onclick="showPage('dashboard', this)"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+    <a href="#" onclick="showPage('transactions', this)"><i class="fas fa-exchange-alt"></i> Transactions</a>
+    <a href="#" onclick="showPage('analytics', this)"><i class="fas fa-chart-pie"></i> Analytics</a>
+    <a href="#" onclick="showPage('goals', this)"><i class="fas fa-bullseye"></i> Goals</a>
+  </nav>
+
+  <main class="main-container">
+    <!-- Dashboard Section -->
+    <section id="dashboard" class="page">
+      <h2>Current Financial Overview</h2>
+      <div class="input-field">
+        <input type="text" id="incomeDescription" placeholder="Income Description" />
+        <input type="number" id="incomeAmount" placeholder="Amount" />
+        <button onclick="addIncome()">Add Income</button>
+      </div>
+      <div class="input-field">
+        <input type="text" id="expenseDescription" placeholder="Expense Description" />
+        <input type="number" id="expenseAmount" placeholder="Amount" />
+        <button onclick="addExpense()">Add Expense</button>
+      </div>
+      <h3>Current Balance: ₹<span id="balance">0.00</span></h3>
+      <h4>Total Income: ₹<span id="totalIncome">0.00</span></h4>
+      <h4>Total Expenses: ₹<span id="totalExpenses">0.00</span></h4>
+      <h4>Total Savings: ₹<span id="totalSavings">0.00</span></h4>
+    </section>
+
+    <!-- Transactions Section -->
+    <section id="transactions" class="page hidden">
+      <h2>Transaction History</h2>
+      <div id="transactionList" class="transaction-list"></div>
+    </section>
+
+    <!-- Analytics Section -->
+    <section id="analytics" class="page hidden">
+      <h2>Analytics Overview</h2>
+      <div class="chart-container">
+        <canvas id="analyticsChart"></canvas>
+      </div>
+      <button onclick="displayAnalytics()" style="margin-top:1rem;">Refresh Chart</button>
+    </section>
+
+    <!-- Goals Section -->
+    <section id="goals" class="page hidden">
+      <h2>Your Financial Goals</h2>
+      <div class="input-field">
+        <input type="text" id="goalInput" placeholder="Enter your goal" />
+        <button onclick="addGoal()">Add Goal</button>
+      </div>
+      <ul id="goalList" class="goal-list"></ul>
+    </section>
+  </main>
+
+  <script>
+    let totalIncome = 0;
+    let totalExpenses = 0;
+    const transactions = [];
+    const goals = [];
+
+    function showPage(pageId, navLink) {
+      document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+      document.getElementById(pageId).classList.remove('hidden');
+      document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+      navLink.classList.add('active');
+      if (pageId === 'transactions') displayTransactions();
+      if (pageId === 'analytics') displayAnalytics();
+    }
+
+    function addIncome() {
+      const desc = document.getElementById("incomeDescription").value;
+      const amt = parseFloat(document.getElementById("incomeAmount").value) || 0;
+      if (desc && amt > 0) {
+        totalIncome += amt;
+        transactions.push({ type: 'income', description: desc, amount: amt, date: new Date() });
+        updateDashboard();
+      }
+      document.getElementById("incomeDescription").value = '';
+      document.getElementById("incomeAmount").value = '';
+    }
+
+    function addExpense() {
+      const desc = document.getElementById("expenseDescription").value;
+      const amt = parseFloat(document.getElementById("expenseAmount").value) || 0;
+      if (desc && amt > 0) {
+        totalExpenses += amt;
+        transactions.push({ type: 'expense', description: desc, amount: amt, date: new Date() });
+        updateDashboard();
+      }
+      document.getElementById("expenseDescription").value = '';
+      document.getElementById("expenseAmount").value = '';
+    }
+
+    function updateDashboard() {
+      const balance = totalIncome - totalExpenses;
+      document.getElementById("balance").innerText = balance.toFixed(2);
+      document.getElementById("totalIncome").innerText = totalIncome.toFixed(2);
+      document.getElementById("totalExpenses").innerText = totalExpenses.toFixed(2);
+      document.getElementById("totalSavings").innerText = Math.max(balance, 0).toFixed(2);
+    }
+
+    function deleteTransaction(index) {
+      const t = transactions[index];
+      if (t.type === "income") totalIncome -= t.amount;
+      else totalExpenses -= t.amount;
+      transactions.splice(index, 1);
+      updateDashboard();
+      displayTransactions();
+      displayAnalytics();
+    }
+
+    function displayTransactions() {
+      const transactionList = document.getElementById("transactionList");
+      transactionList.innerHTML = transactions
+        .slice()
+        .reverse()
+        .map((tr, index) => {
+          const color = tr.type === 'income' ? 'var(--income-color)' : 'var(--expense-color)';
+          const badge = tr.type === 'income' ? 'Income' : 'Expense';
+          return `
+          <div class="transaction-item">
+            <strong style="color:${color}">${badge}</strong>: ${tr.description} – ₹${tr.amount.toFixed(2)} <br>
+            <small>${new Date(tr.date).toLocaleString()}</small>
+            <br>
+            <button style="margin-top:5px;background:#ccc;color:#000;border:none;padding:4px 10px;border-radius:5px;cursor:pointer;" onclick="deleteTransaction(${transactions.length - 1 - index})">
+              Delete
+            </button>
+          </div>`;
+        }).join('');
+    }
+
+    function displayAnalytics() {
+      const ctx = document.getElementById("analyticsChart").getContext("2d");
+      if (window.myChart) window.myChart.destroy();
+
+      window.myChart = new Chart(ctx, {
+        type: "pie",
+        data: {
+          labels: ["Income", "Expenses"],
+          datasets: [{
+            data: [totalIncome, totalExpenses],
+            backgroundColor: ["rgba(16, 185, 129, 0.7)", "rgba(239, 68, 68, 0.7)"],
+            borderColor: ["#10b981", "#ef4444"],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              position: 'bottom'
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  let label = context.label || '';
+                  let value = context.raw || 0;
+                  return `${label}: ₹${value.toFixed(2)}`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function addGoal() {
+      const goalInput = document.getElementById("goalInput");
+      const goal = goalInput.value.trim();
+      if (goal) {
+        goals.push(goal);
+        goalInput.value = '';
+        displayGoals();
+      }
+    }
+
+    function displayGoals() {
+      const goalList = document.getElementById("goalList");
+      goalList.innerHTML = goals.map(g => `<li>🎯 ${g}</li>`).join('');
+    }
+
+    updateDashboard();
+  </script>
+
+</body>
+</html>
